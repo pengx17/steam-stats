@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useGames } from "../../components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import { SteamGame } from "../../types/steam";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -335,30 +335,18 @@ function GameHoverCard({
 }
 
 export default function LibraryPage() {
-  const { games, loading, refreshing, fromCache, cacheAge, refresh } =
-    useGames();
+  const games = useGamesStore((s) => s.games);
+  const loading = useGamesStore((s) => s.gamesLoading);
+  const refreshing = useGamesStore((s) => s.gamesRefreshing);
+  const fromCache = useGamesStore((s) => s.gamesFromCache);
+  const cacheAge = useGamesStore((s) => s.gamesCacheAge);
+  const fetchGames = useGamesStore((s) => s.fetchGames);
+  const reviews = useGamesStore((s) => s.reviews);
   const [sortField, setSortField] = useState<SortField>("playtime");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [searchQuery, setSearchQuery] = useState("");
-  const [reviews, setReviews] = useState<UserReview[]>([]);
   const [prefetching, setPrefetching] = useState(false);
   const [prefetchProgress, setPrefetchProgress] = useState<string | null>(null);
-
-  // Fetch user reviews
-  useEffect(() => {
-    const fetchReviews = async () => {
-      try {
-        const res = await fetch("/api/steam/reviews");
-        if (res.ok) {
-          const data = await res.json();
-          setReviews(data.reviews || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch reviews:", err);
-      }
-    };
-    fetchReviews();
-  }, []);
 
   // Pre-fetch top games metadata
   const prefetchTopGames = useCallback(async () => {
@@ -556,7 +544,7 @@ export default function LibraryPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={refresh}
+            onClick={() => fetchGames(true)}
             disabled={refreshing}
           >
             <RefreshCw

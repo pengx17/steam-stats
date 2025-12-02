@@ -1,93 +1,41 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { useEffect, ReactNode } from "react";
 import { useSession } from "next-auth/react";
-import axios from "axios";
-import { SteamGame } from "../types/steam";
-import { getCachedGames, setCachedGames, getCacheInfo } from "@/lib/cache";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 
-interface GamesContextType {
-  games: SteamGame[];
-  loading: boolean;
-  refreshing: boolean;
-  fromCache: boolean;
-  cacheAge: number | null;
-  refresh: () => void;
-}
-
-const GamesContext = createContext<GamesContextType | null>(null);
-
-export function useGames() {
-  const context = useContext(GamesContext);
-  if (!context) {
-    throw new Error("useGames must be used within a GamesProvider");
-  }
-  return context;
-}
-
+/**
+ * GamesProvider initializes the Zustand store with user data.
+ * It runs once when the user enters the dashboard area.
+ */
 export function GamesProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
-  const [games, setGames] = useState<SteamGame[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [fromCache, setFromCache] = useState(false);
-  const [cacheAge, setCacheAge] = useState<number | null>(null);
+  const { setSteamId, initializeData, reset, steamId } = useGamesStore();
 
-  const fetchGames = useCallback(async (steamId: string, forceRefresh = false) => {
-    if (!forceRefresh) {
-      const cached = await getCachedGames(steamId);
-      if (cached) {
-        setGames(cached);
-        setFromCache(true);
-        const info = await getCacheInfo(steamId);
-        setCacheAge(info.age);
-        setLoading(false);
-        return;
-      }
-    }
-
-    setRefreshing(forceRefresh);
-    try {
-      const res = await axios.get(`/api/steam/games?steamId=${steamId}`);
-      if (res.data.response && res.data.response.games) {
-        const fetchedGames = res.data.response.games;
-        setGames(fetchedGames);
-        setFromCache(false);
-        setCacheAge(null);
-        await setCachedGames(steamId, fetchedGames);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
+  // Set steamId when session is available
   useEffect(() => {
     if (session?.user) {
-      // @ts-expect-error - steamId is custom
-      const steamId = session.user.steamId;
-      if (steamId) {
-        fetchGames(steamId);
+      // @ts-expect-error - steamId is custom property
+      const userSteamId = session.user.steamId as string;
+      if (userSteamId && userSteamId !== steamId) {
+        setSteamId(userSteamId);
       }
     }
-  }, [session, fetchGames]);
+  }, [session, setSteamId, steamId]);
 
-  const refresh = useCallback(() => {
-    if (session?.user) {
-      // @ts-expect-error - steamId is custom
-      const steamId = session.user.steamId;
-      if (steamId) {
-        fetchGames(steamId, true);
-      }
+  // Initialize data when steamId is set
+  useEffect(() => {
+    if (steamId) {
+      initializeData();
     }
-  }, [session, fetchGames]);
+  }, [steamId, initializeData]);
 
-  return (
-    <GamesContext.Provider value={{ games, loading, refreshing, fromCache, cacheAge, refresh }}>
-      {children}
-    </GamesContext.Provider>
-  );
+  // Reset store on logout
+  useEffect(() => {
+    if (!session?.user) {
+      reset();
+    }
+  }, [session, reset]);
+
+  return <>{children}</>;
 }
-

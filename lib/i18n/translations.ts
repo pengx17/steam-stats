@@ -4,6 +4,7 @@ export const translations = {
     nav: {
       overview: "Overview",
       library: "Library",
+      reviews: "Reviews",
       timeline: "Timeline",
       value: "Value",
       charts: "Charts",
@@ -189,6 +190,7 @@ export const translations = {
     nav: {
       overview: "概览",
       library: "游戏库",
+      reviews: "评测",
       timeline: "时间线",
       value: "性价比",
       charts: "图表",

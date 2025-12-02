@@ -1,11 +1,12 @@
 "use client";
 
-import { useGames } from "@/app/components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import ValueAnalysis from "@/app/components/ValueAnalysis";
 import { Loader2 } from "lucide-react";
 
 export default function ValuePage() {
-  const { games, loading } = useGames();
+  const games = useGamesStore((s) => s.games);
+  const loading = useGamesStore((s) => s.gamesLoading);
 
   if (loading) {
     return (
@@ -28,4 +29,3 @@ export default function ValuePage() {
     </div>
   );
 }
-

@@ -1,9 +1,8 @@
 "use client";
 
-import { useGames } from "../../components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   Clock, 
   Gamepad2, 
@@ -18,7 +17,12 @@ import {
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { games, loading, refreshing, fromCache, cacheAge, refresh } = useGames();
+  const games = useGamesStore((s) => s.games);
+  const loading = useGamesStore((s) => s.gamesLoading);
+  const refreshing = useGamesStore((s) => s.gamesRefreshing);
+  const fromCache = useGamesStore((s) => s.gamesFromCache);
+  const cacheAge = useGamesStore((s) => s.gamesCacheAge);
+  const fetchGames = useGamesStore((s) => s.fetchGames);
 
   const totalPlaytime = games.reduce((acc, game) => acc + game.playtime_forever, 0);
   const totalHours = Math.round(totalPlaytime / 60);
@@ -69,7 +73,7 @@ export default function DashboardPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={refresh}
+            onClick={() => fetchGames(true)}
             disabled={refreshing}
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -214,4 +218,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

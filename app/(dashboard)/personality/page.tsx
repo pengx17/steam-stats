@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useGames } from "@/app/components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import GamerMBTI from "@/app/components/GamerMBTI";
 import { Loader2 } from "lucide-react";
 import { getCachedGameDetails, setCachedGameDetails } from "@/lib/cache";
@@ -14,7 +14,8 @@ interface GenreData {
 }
 
 export default function PersonalityPage() {
-  const { games, loading: gamesLoading } = useGames();
+  const games = useGamesStore((s) => s.games);
+  const gamesLoading = useGamesStore((s) => s.gamesLoading);
   const { t } = useI18n();
   const [genreData, setGenreData] = useState<GenreData[]>([]);
   const [loadingGenres, setLoadingGenres] = useState(true);
@@ -139,4 +140,3 @@ export default function PersonalityPage() {
     </div>
   );
 }
-

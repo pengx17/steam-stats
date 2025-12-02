@@ -7,13 +7,14 @@ import { usePathname } from "next/navigation";
 import LoginButton from "../components/LoginButton";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { GamesProvider } from "../components/GamesProvider";
-import { Loader2, LayoutDashboard, List, PieChart, Skull, Gamepad2, DollarSign, Clock, Brain } from "lucide-react";
+import { Loader2, LayoutDashboard, List, PieChart, Skull, Gamepad2, DollarSign, Clock, Brain, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 const navItemsConfig = [
   { href: "/dashboard", labelKey: "overview" as const, icon: LayoutDashboard },
   { href: "/library", labelKey: "library" as const, icon: List },
+  { href: "/reviews", labelKey: "reviews" as const, icon: MessageSquare },
   { href: "/timeline", labelKey: "timeline" as const, icon: Clock },
   { href: "/value", labelKey: "value" as const, icon: DollarSign },
   { href: "/charts", labelKey: "charts" as const, icon: PieChart },

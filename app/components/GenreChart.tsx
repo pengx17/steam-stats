@@ -58,8 +58,16 @@ export default function GenreChart({ games }: GenreChartProps) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // Skip if no games
+    if (games.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
     const fetchGenres = async () => {
       setLoading(true);
+      setProgress(0);
       
       // Get top 100 games by playtime (to limit API calls)
       const topGames = [...games]
@@ -67,15 +75,22 @@ export default function GenreChart({ games }: GenreChartProps) {
         .sort((a, b) => b.playtime_forever - a.playtime_forever)
         .slice(0, 100);
 
+      if (topGames.length === 0) {
+        setLoading(false);
+        return;
+      }
+
       const genreMap = new Map<string, { hours: number; gameCount: number }>();
       let completed = 0;
 
       // Fetch genres for each game
       for (const game of topGames) {
+        if (cancelled) return;
+
         // Check IDB cache first
         const cached = await getCachedGameDetails(game.appid);
         
-        if (cached) {
+        if (cached && cached.genres.length > 0) {
           const hours = game.playtime_forever / 60;
           cached.genres.forEach(genre => {
             const existing = genreMap.get(genre) || { hours: 0, gameCount: 0 };
@@ -89,7 +104,7 @@ export default function GenreChart({ games }: GenreChartProps) {
             const res = await fetch(`/api/steam/app/${game.appid}`);
             if (res.ok) {
               const data = await res.json();
-              const genres = data.genres?.map((g: { description: string }) => g.description) || ["Other"];
+              const genres = data.genres?.map((g: { description: string }) => g.description) || [];
               
               // Save to IDB cache
               await setCachedGameDetails(
@@ -100,14 +115,16 @@ export default function GenreChart({ games }: GenreChartProps) {
                 data.metacritic || null
               );
               
-              const hours = game.playtime_forever / 60;
-              genres.forEach((genre: string) => {
-                const existing = genreMap.get(genre) || { hours: 0, gameCount: 0 };
-                genreMap.set(genre, { 
-                  hours: existing.hours + hours, 
-                  gameCount: existing.gameCount + 1 
+              if (genres.length > 0) {
+                const hours = game.playtime_forever / 60;
+                genres.forEach((genre: string) => {
+                  const existing = genreMap.get(genre) || { hours: 0, gameCount: 0 };
+                  genreMap.set(genre, { 
+                    hours: existing.hours + hours, 
+                    gameCount: existing.gameCount + 1 
+                  });
                 });
-              });
+              }
             }
             // Small delay to avoid rate limiting (only for API calls)
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -117,8 +134,12 @@ export default function GenreChart({ games }: GenreChartProps) {
         }
         
         completed++;
-        setProgress(Math.round((completed / topGames.length) * 100));
+        if (!cancelled) {
+          setProgress(Math.round((completed / topGames.length) * 100));
+        }
       }
+
+      if (cancelled) return;
 
       // Convert to array and sort by hours
       const result: GenreData[] = Array.from(genreMap.entries())
@@ -135,10 +156,12 @@ export default function GenreChart({ games }: GenreChartProps) {
       setLoading(false);
     };
 
-    if (games.length > 0) {
-      fetchGenres();
-    }
-  }, [games]);
+    fetchGenres();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [games.length]); // Use games.length to avoid unnecessary re-runs
 
   const CustomTooltip = ({ active, payload }: { 
     active?: boolean; 

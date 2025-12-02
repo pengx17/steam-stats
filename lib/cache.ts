@@ -27,23 +27,41 @@ interface GameDetails {
   timestamp: number;
 }
 
+interface UserReview {
+  appId: string;
+  gameName: string;
+  recommended: boolean;
+  reviewText: string;
+  hoursPlayed: string;
+}
+
+interface ReviewsCache {
+  steamId: string;
+  reviews: UserReview[];
+  totalReviews: number;
+  timestamp: number;
+}
+
 // Cache durations
 const GAMES_CACHE_DURATION = 1000 * 60 * 30; // 30 minutes
 const PERSONALITY_CACHE_DURATION = 1000 * 60 * 60 * 24 * 7; // 7 days
 const GAME_DETAILS_CACHE_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
+const REVIEWS_CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours
 
 // Define the database with Dexie
 const db = new Dexie("SteamStatsDB") as Dexie & {
   games: EntityTable<GamesCache, "steamId">;
   personality: EntityTable<PersonalityCache, "steamId">;
   gameDetails: EntityTable<GameDetails, "appid">;
+  reviews: EntityTable<ReviewsCache, "steamId">;
 };
 
-// Define schema
-db.version(1).stores({
+// Define schema - bump version when adding new stores
+db.version(2).stores({
   games: "steamId",
   personality: "steamId",
   gameDetails: "appid",
+  reviews: "steamId",
 });
 
 // ============================================
@@ -319,6 +337,69 @@ export async function fetchAndCacheGameDetails(
 }
 
 // ============================================
+// Reviews Cache Functions
+// ============================================
+
+export async function getCachedReviews(
+  steamId: string
+): Promise<{ reviews: UserReview[]; totalReviews: number } | null> {
+  try {
+    const cached = await db.reviews.get(steamId);
+    if (!cached) return null;
+
+    const isExpired = Date.now() - cached.timestamp > REVIEWS_CACHE_DURATION;
+    if (isExpired) {
+      await db.reviews.delete(steamId);
+      return null;
+    }
+
+    return { reviews: cached.reviews, totalReviews: cached.totalReviews };
+  } catch (error) {
+    console.error("Error reading reviews from cache:", error);
+    return null;
+  }
+}
+
+export async function setCachedReviews(
+  steamId: string,
+  reviews: UserReview[],
+  totalReviews: number
+): Promise<void> {
+  try {
+    await db.reviews.put({
+      steamId,
+      reviews,
+      totalReviews,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error("Error writing reviews to cache:", error);
+  }
+}
+
+export async function getReviewsCacheInfo(
+  steamId: string
+): Promise<{ cached: boolean; age: number | null }> {
+  try {
+    const cached = await db.reviews.get(steamId);
+    if (!cached) {
+      return { cached: false, age: null };
+    }
+    return { cached: true, age: Date.now() - cached.timestamp };
+  } catch {
+    return { cached: false, age: null };
+  }
+}
+
+export async function clearReviewsCache(steamId: string): Promise<void> {
+  try {
+    await db.reviews.delete(steamId);
+  } catch (error) {
+    console.error("Error clearing reviews cache:", error);
+  }
+}
+
+// ============================================
 // Clear Cache Functions
 // ============================================
 
@@ -327,10 +408,12 @@ export async function clearCache(steamId?: string): Promise<void> {
     if (steamId) {
       await db.games.delete(steamId);
       await db.personality.delete(steamId);
+      await db.reviews.delete(steamId);
     } else {
       await db.games.clear();
       await db.personality.clear();
       await db.gameDetails.clear();
+      await db.reviews.clear();
     }
   } catch (error) {
     console.error("Error clearing cache:", error);
@@ -342,19 +425,27 @@ export async function getCacheStats(): Promise<{
   gamesCount: number;
   personalityCount: number;
   gameDetailsCount: number;
+  reviewsCount: number;
 }> {
   try {
-    const [gamesCount, personalityCount, gameDetailsCount] = await Promise.all([
-      db.games.count(),
-      db.personality.count(),
-      db.gameDetails.count(),
-    ]);
-    return { gamesCount, personalityCount, gameDetailsCount };
+    const [gamesCount, personalityCount, gameDetailsCount, reviewsCount] =
+      await Promise.all([
+        db.games.count(),
+        db.personality.count(),
+        db.gameDetails.count(),
+        db.reviews.count(),
+      ]);
+    return { gamesCount, personalityCount, gameDetailsCount, reviewsCount };
   } catch (error) {
     console.error("Error getting cache stats:", error);
-    return { gamesCount: 0, personalityCount: 0, gameDetailsCount: 0 };
+    return {
+      gamesCount: 0,
+      personalityCount: 0,
+      gameDetailsCount: 0,
+      reviewsCount: 0,
+    };
   }
 }
 
 export { generateGamesHash };
-export type { GameDetails };
+export type { GameDetails, UserReview };

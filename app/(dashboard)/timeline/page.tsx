@@ -1,11 +1,12 @@
 "use client";
 
-import { useGames } from "@/app/components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import GameTimeline from "@/app/components/GameTimeline";
 import { Loader2 } from "lucide-react";
 
 export default function TimelinePage() {
-  const { games, loading } = useGames();
+  const games = useGamesStore((s) => s.games);
+  const loading = useGamesStore((s) => s.gamesLoading);
 
   if (loading) {
     return (
@@ -28,4 +29,3 @@ export default function TimelinePage() {
     </div>
   );
 }
-

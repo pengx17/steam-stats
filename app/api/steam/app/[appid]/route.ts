@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Simple in-memory rate limiter
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 1500; // 1.5 seconds between requests
+const MIN_REQUEST_INTERVAL = 500; // 1.5 seconds between requests
 
 async function fetchWithRateLimit(url: string, appid: string) {
   // Wait if we're making requests too fast
   const now = Date.now();
   const timeSinceLastRequest = now - lastRequestTime;
   if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-    await new Promise(resolve => 
+    await new Promise((resolve) =>
       setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest)
     );
   }
@@ -23,8 +23,9 @@ async function fetchWithRateLimit(url: string, appid: string) {
     const response = await fetch(url, {
       headers: {
         "Accept-Language": "en-US,en;q=0.9",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "application/json",
       },
       next: { revalidate: 86400 }, // Cache for 24 hours
     });
@@ -34,9 +35,16 @@ async function fetchWithRateLimit(url: string, appid: string) {
     }
 
     // If rate limited (403 or 429), wait and retry
-    if ((response.status === 403 || response.status === 429) && attempt < maxRetries) {
-      console.log(`[Steam API] Rate limited for appid=${appid}, waiting ${delay}ms before retry ${attempt + 1}/${maxRetries}`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+    if (
+      (response.status === 403 || response.status === 429) &&
+      attempt < maxRetries
+    ) {
+      console.log(
+        `[Steam API] Rate limited for appid=${appid}, waiting ${delay}ms before retry ${
+          attempt + 1
+        }/${maxRetries}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
       continue;
     }

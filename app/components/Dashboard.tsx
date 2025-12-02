@@ -354,7 +354,7 @@ export default function Dashboard() {
       const steamId = session.user.steamId;
       if (steamId) {
         fetchGames(steamId, true);
-      }
+            }
     }
   };
 
@@ -364,7 +364,7 @@ export default function Dashboard() {
     } else {
       setSortField(field);
       setSortDirection(field === "name" ? "asc" : "desc");
-    }
+      }
   };
 
   const filteredAndSortedGames = useMemo(() => {

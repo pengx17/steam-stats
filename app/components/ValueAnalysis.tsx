@@ -23,24 +23,39 @@ export default function ValueAnalysis({ games }: ValueAnalysisProps) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
+    // Skip if no games
+    if (games.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
     const fetchPrices = async () => {
       setLoading(true);
+      setProgress(0);
       
       // Get top 100 games by playtime
       const topGames = [...games]
         .sort((a, b) => b.playtime_forever - a.playtime_forever)
         .slice(0, 100);
 
+      if (topGames.length === 0) {
+        setLoading(false);
+        return;
+      }
+
       const results: GameWithPrice[] = [];
       let completed = 0;
 
       for (const game of topGames) {
+        if (cancelled) return;
+
         let price: number | null = null;
         
         // Check IDB cache first
         const cached = await getCachedGameDetails(game.appid);
         
-        if (cached && cached.price !== undefined) {
+        if (cached && cached.price !== undefined && cached.price !== null) {
           price = cached.price;
         } else {
           try {
@@ -79,17 +94,23 @@ export default function ValueAnalysis({ games }: ValueAnalysisProps) {
         });
 
         completed++;
-        setProgress(Math.round((completed / topGames.length) * 100));
+        if (!cancelled) {
+          setProgress(Math.round((completed / topGames.length) * 100));
+        }
       }
+
+      if (cancelled) return;
 
       setGamesWithPrices(results);
       setLoading(false);
     };
 
-    if (games.length > 0) {
-      fetchPrices();
-    }
-  }, [games]);
+    fetchPrices();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [games.length]); // Use games.length to avoid unnecessary re-runs
 
   const stats = useMemo(() => {
     const withPrices = gamesWithPrices.filter(g => g.price !== undefined && g.price > 0);

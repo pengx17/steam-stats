@@ -1,11 +1,12 @@
 "use client";
 
-import { useGames } from "../../components/GamesProvider";
+import { useGamesStore } from "@/lib/stores/useGamesStore";
 import WallOfShame from "../../components/WallOfShame";
 import { Loader2 } from "lucide-react";
 
 export default function ShamePage() {
-  const { games, loading } = useGames();
+  const games = useGamesStore((s) => s.games);
+  const loading = useGamesStore((s) => s.gamesLoading);
 
   if (loading) {
     return (
@@ -31,4 +32,3 @@ export default function ShamePage() {
     </div>
   );
 }
-
