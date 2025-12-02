@@ -109,13 +109,17 @@ export default function ValueAnalysis({ games }: ValueAnalysisProps) {
         // Check IDB cache first
         const cached = await getCachedGameDetails(game.appid);
 
-        if (cached && cached.price !== undefined && cached.price !== null) {
+        // Only use cache if it has both price AND currency info
+        // Old cache entries without currency are invalid (might have wrong currency interpretation)
+        if (
+          cached &&
+          cached.price !== undefined &&
+          cached.price !== null &&
+          cached.currency
+        ) {
           price = cached.price;
-          // Read currency from cache if available
-          if (cached.currency) {
-            currency = cached.currency;
-            detectedCurrency = currency;
-          }
+          currency = cached.currency;
+          detectedCurrency = currency;
         } else {
           try {
             const res = await fetch(`/api/steam/app/${game.appid}`);
