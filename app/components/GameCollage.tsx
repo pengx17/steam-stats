@@ -8,6 +8,9 @@ import { Download, Loader2, RefreshCw } from "lucide-react";
 interface GameCollageProps {
   games: SteamGame[];
   maxGames?: number;
+  userName?: string;
+  steamId?: string;
+  userAvatar?: string;
 }
 
 interface GameBox {
@@ -151,7 +154,10 @@ function getBoundingBox(boxes: GameBox[]): {
 
 export default function GameCollage({
   games,
-  maxGames = 150,
+  maxGames = 500,
+  userName,
+  steamId,
+  userAvatar,
 }: GameCollageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -186,6 +192,11 @@ export default function GameCollage({
     }
 
     const maxPlaytime = playedGames[0].playtime_forever;
+    const totalPlaytime = playedGames.reduce(
+      (sum, g) => sum + g.playtime_forever,
+      0
+    );
+    const totalHours = Math.round(totalPlaytime / 60);
 
     // Size parameters (in logical pixels, will be scaled up for high DPI)
     const minHeight = 50;
@@ -214,14 +225,16 @@ export default function GameCollage({
     // Calculate actual bounding box and normalize positions
     const bounds = getBoundingBox(placed);
     const padding = 40;
+    const headerHeight = userName ? 80 : 0; // Add header space if user info available
 
     const logicalWidth = bounds.maxX - bounds.minX + padding * 2;
-    const logicalHeight = bounds.maxY - bounds.minY + padding * 2;
+    const logicalHeight =
+      bounds.maxY - bounds.minY + padding * 2 + headerHeight;
 
-    // Normalize positions
+    // Normalize positions (offset by header)
     for (const box of placed) {
       box.x = box.x - bounds.minX + padding;
-      box.y = box.y - bounds.minY + padding;
+      box.y = box.y - bounds.minY + padding + headerHeight;
     }
 
     // Set canvas size with scale factor for high DPI
@@ -234,6 +247,98 @@ export default function GameCollage({
     // Dark background (use logical dimensions)
     ctx.fillStyle = "#0a0a0f";
     ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+
+    // Draw user header if available
+    if (userName && headerHeight > 0) {
+      // Load avatar image
+      let avatarImg: HTMLImageElement | null = null;
+      if (userAvatar) {
+        try {
+          const avatarUrl = `/api/image-proxy?url=${encodeURIComponent(
+            userAvatar
+          )}`;
+          avatarImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = avatarUrl;
+          });
+        } catch {
+          // Avatar loading failed, continue without it
+        }
+      }
+
+      const avatarSize = 50;
+      const avatarX = padding;
+      const avatarY = padding - 5;
+
+      // Draw avatar
+      if (avatarImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(
+          avatarX + avatarSize / 2,
+          avatarY + avatarSize / 2,
+          avatarSize / 2,
+          0,
+          Math.PI * 2
+        );
+        ctx.clip();
+        ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+        ctx.restore();
+
+        // Avatar border
+        ctx.strokeStyle = "rgba(255,255,255,0.3)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(
+          avatarX + avatarSize / 2,
+          avatarY + avatarSize / 2,
+          avatarSize / 2,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+      }
+
+      // Draw user name
+      const textX = avatarImg ? avatarX + avatarSize + 15 : padding;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 22px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(userName, textX, avatarY + 5);
+
+      // Draw stats
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.font = "14px system-ui, sans-serif";
+      ctx.fillText(
+        `${playedGames.length} 款游戏 · ${totalHours.toLocaleString()} 小时`,
+        textX,
+        avatarY + 32
+      );
+
+      // Draw Steam ID on the right
+      if (steamId) {
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText(
+          `Steam ID: ${steamId}`,
+          logicalWidth - padding,
+          avatarY + 10
+        );
+      }
+
+      // Separator line
+      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, headerHeight - 5);
+      ctx.lineTo(logicalWidth - padding, headerHeight - 5);
+      ctx.stroke();
+    }
 
     // Load and draw images
     let loaded = 0;
@@ -334,7 +439,7 @@ export default function GameCollage({
 
     setLoading(false);
     setGenerated(true);
-  }, [games, maxGames, loading]);
+  }, [games, maxGames, loading, userName, steamId, userAvatar]);
 
   const downloadImage = () => {
     const canvas = canvasRef.current;
@@ -348,10 +453,14 @@ export default function GameCollage({
 
   const playedGamesCount = games.filter((g) => g.playtime_forever > 0).length;
 
-  // Auto-generate on mount
+  // Auto-generate on mount when games are available
   useEffect(() => {
     if (games.length > 0 && !generated && !loading) {
-      generateCollage();
+      // Use setTimeout to avoid calling setState directly within effect
+      const timer = setTimeout(() => {
+        generateCollage();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [games.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -368,12 +477,14 @@ export default function GameCollage({
             ...canvasStyle,
           }}
         />
-        {loading && (
-          <div className="aspect-[16/10] flex items-center justify-center">
+        {!generated && (
+          <div className="aspect-16/10 flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-primary" />
               <p className="text-sm text-muted-foreground">
-                正在生成拼贴画... {progress}%
+                {loading
+                  ? `正在生成拼贴画... ${progress}%`
+                  : "准备生成拼贴画..."}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {Math.min(maxGames, playedGamesCount)} 款游戏

@@ -15,15 +15,22 @@ import {
   Skull
 } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import GameCollage from "../../components/GameCollage";
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const games = useGamesStore((s) => s.games);
   const loading = useGamesStore((s) => s.gamesLoading);
   const refreshing = useGamesStore((s) => s.gamesRefreshing);
   const fromCache = useGamesStore((s) => s.gamesFromCache);
   const cacheAge = useGamesStore((s) => s.gamesCacheAge);
   const fetchGames = useGamesStore((s) => s.fetchGames);
+
+  // @ts-expect-error - steamId is custom property
+  const steamId = session?.user?.steamId as string | undefined;
+  const userName = session?.user?.name;
+  const userAvatar = session?.user?.image;
 
   const totalPlaytime = games.reduce((acc, game) => acc + game.playtime_forever, 0);
   const totalHours = Math.round(totalPlaytime / 60);
@@ -86,7 +93,12 @@ export default function DashboardPage() {
       {games.length > 0 && (
         <Card className="overflow-hidden">
           <CardContent className="p-4">
-            <GameCollage games={games} maxGames={120} />
+            <GameCollage 
+              games={games} 
+              userName={userName || undefined}
+              steamId={steamId}
+              userAvatar={userAvatar || undefined}
+            />
           </CardContent>
         </Card>
       )}
