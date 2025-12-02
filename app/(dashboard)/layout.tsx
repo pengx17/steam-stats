@@ -6,13 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import LoginButton from "../components/LoginButton";
 import { GamesProvider } from "../components/GamesProvider";
-import { Loader2, LayoutDashboard, List, PieChart, Skull, Gamepad2, Calendar, DollarSign, Clock } from "lucide-react";
+import { Loader2, LayoutDashboard, List, PieChart, Skull, Gamepad2, DollarSign, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/library", label: "Library", icon: List },
-  { href: "/activity", label: "Activity", icon: Calendar },
   { href: "/timeline", label: "Timeline", icon: Clock },
   { href: "/value", label: "Value", icon: DollarSign },
   { href: "/charts", label: "Charts", icon: PieChart },
