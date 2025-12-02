@@ -165,7 +165,7 @@ ${reviewsSection}
         },
       ],
       temperature: 0.7,
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
     });
 
     const responseText = completion.choices[0]?.message?.content || "";
