@@ -163,3 +163,22 @@ html {
 .dark ::selection {
   background: rgba(139, 143, 248, 0.3);
 }
+
+/* Radial gradient utility */
+.bg-gradient-radial {
+  background-image: radial-gradient(var(--tw-gradient-stops));
+}
+
+/* Float animation for decorative elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(var(--tw-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-20px) rotate(var(--tw-rotate, 0deg));
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
